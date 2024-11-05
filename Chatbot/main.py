@@ -84,13 +84,12 @@ if prompt := st.chat_input("Query"):
         # Add spinner while waiting for the response
         with st.spinner("Thinking..."):
             with get_openai_callback() as cb:
-                chain, context_dict, dest, ref_query = bot.get_query_response(prompt)
+                chain, context_dict, ref_query = bot.get_query_response(prompt)
                 context = context_dict['input_documents']
                 response = chain.run(context_dict)
                 st.write(time.time() - start_time)
                 with st.sidebar:
                     st.write(f"{ref_query}")
-                    st.write(f"{dest}")
                     st.write(f"Total Tokens: {cb.total_tokens}")
                     st.write(f"Prompt Tokens: {cb.prompt_tokens}")
                     st.write(f"Completion Tokens: {cb.completion_tokens}")

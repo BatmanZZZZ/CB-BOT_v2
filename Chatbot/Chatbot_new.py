@@ -56,7 +56,14 @@ class ChatbotResponse:
         
         docs_list = [doc.page_content for doc in docs]
         
-        len_docs = len(docs_list) 
+        len_docs = len(docs_list)
+        
+        docs_to_return = 0 
+        
+        if len_docs//2 > 15:
+            docs_to_return = 15
+        else:
+            docs_to_return = len_docs//2
         
         
        
@@ -64,7 +71,7 @@ class ChatbotResponse:
             model="bge-reranker-v2-m3",
             query= query,
             documents=docs_list,
-            top_n= len_docs//2,
+            top_n= docs_to_return,
             return_documents=False,
             parameters={
                 "truncate": "END"
@@ -124,24 +131,18 @@ class ChatbotResponse:
                                      verbose=False)
         return main_router_chain
 
-    def make_ksa_context_pinecone(self, query: str, main_ret: str, ret_name: str, nmsp: list) -> list:
+    def make_ksa_context_pinecone(self, query: str,nmsp: list) -> list:
         context = []
         for name in nmsp:
-            if ret_name in name:
-                context.extend(
-                    self.vectorstore.similarity_search_with_score(query, k=6, namespace=name))
-                break
-        if main_ret != 'Security':
             context.extend(
-                self.vectorstore.similarity_search_with_score(query, k=20,
-                                                              namespace='All Licensed Financial Institutions_general'))
+                self.vectorstore.similarity_search_with_score(query, k=10, namespace=name))
 
         context = sorted(context, key=lambda x: x[1], reverse=True)
         context_ = []
         for doc, score in context:
             doc.metadata['score'] = score
             context_.append(doc)
-        return context_[:60] if len(context_) > 60 else context_
+        return context_
 
     def get_query_response(self, query):
         context = []
@@ -161,28 +162,17 @@ class ChatbotResponse:
         second_router_dict = None
         nmsp_ = None
         if main_dest == 'Security':
-            second_router_dict = security_desc
-            nmsp_ = namesp_security
+            nmsp_ = namesp_security  # Get namespaces for Security
         else:
-            second_router_dict = cbuae_desc
-            nmsp_ = nmsp_cbuae
-        second_level_chain = self.get_router_chain(second_router_dict)
-        second_dest = self.output_parser.parse(second_level_chain.run(refined_query))['destination'][0]
+            nmsp_ = nmsp_cbuae  # Get namespaces for CB UAE
 
-        if second_dest != "DEFAULT":
-            context = self.make_ksa_context_pinecone(refined_query, main_dest, second_dest, nmsp_)
-            
-            # get reranked docs
-            
-            context = self.get_mixed_bread_reranked_docs(refined_query, context)
+        # Get context from the appropriate namespaces
+        context = self.make_ksa_context_pinecone(refined_query, nmsp_)
+
+        # get reranked docs
+        context = self.get_mixed_bread_reranked_docs(refined_query, context)
 
         return self.qa_chain, \
                {"question": refined_query, "input_documents": context}, \
-               {'Destinations': [main_dest, second_dest]}, \
                {'refined': refined_query}
 
-
-if __name__ == '__main__':
-    bot = ChatbotResponse()
-    response = bot.get_query_response("Could you tell me about insurane in uae")
-    # response2 = bot.get_query_response("yes give me more details")
