@@ -1,0 +1,13 @@
+langchain
+langchain-core 
+langchain-openai 
+langchain-community 
+openai 
+langchain-experimental 
+tiktoken
+python-dotenv
+pinecone[grpc]
+streamlit-chat
+faiss-cpu
+streamlit
+loguru
